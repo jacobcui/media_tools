@@ -1,4 +1,4 @@
-"""Convert MOV files to MP4 and rename them with the creation date as YYYYMMDD"""
+"""Convert MOV and AVI files to MP4 and rename them with the creation date as YYYYMMDD"""
 
 import argparse
 import os
@@ -10,10 +10,10 @@ from tqdm import tqdm
 
 
 def convert_file(input_path: str, output_path: str):
-    """Convert a single MOV file to MP4 and rename it with the creation date as YYYYMMDD"""
+    """Convert a MOV/AVI file to MP4 and rename it with the creation date as YYYYMMDD"""
 
     try:
-        # Convert .mov to .mp4 using ffmpeg
+        # Convert video to .mp4 using ffmpeg
         probe = ffmpeg.probe(input_path)
         duration = float(probe["streams"][0]["duration"])
 
@@ -54,32 +54,33 @@ def convert_file(input_path: str, output_path: str):
 
 def get_file_creation_date(input_path: str):
     """Get the creation date of a file as YYYYMMDD"""
-
-    return datetime.fromtimestamp(os.path.getmtime(input_path)).strftime("%Y%m%d")
+    return datetime.fromtimestamp(os.path.getmtime(input_path)).strftime("%Y-%m-%d")
 
 
 def get_output_filepath(input_path: str):
     """Get the output filepath for a file"""
-
     file_dir = Path(input_path).parent
     file_name = Path(input_path).stem
     yyyymmdd = get_file_creation_date(input_path=input_path)
-
     return str(file_dir / f"{yyyymmdd}_{Path(file_name).with_suffix('.mp4')}")
 
 
-def convert_and_rename_mov_files(input_directory):
-    """Convert all .mov files in the input directory to .mp4 and rename them with the creation date as YYYYMMDD"""
+def convert_and_rename_video_files(input_directory):
+    """Convert all .mov and .avi files in the input directory to .mp4 and rename them with the creation date"""
 
     if not os.path.exists(input_directory):
         print(f"Error: Directory '{input_directory}' does not exist.")
         return
 
+    # Supported video formats
+    supported_formats = ('.mov', '.avi')
+
     # Iterate through all files in the input directory
     for filename in os.listdir(input_directory):
-        if filename.lower().endswith(".mov"):
+        if filename.lower().endswith(supported_formats):
             input_path = os.path.join(input_directory, filename)
             output_path = get_output_filepath(input_path=input_path)
+            print(f"\nProcessing: {filename}")
             converted_file = convert_file(
                 input_path=input_path, output_path=output_path
             )
@@ -90,24 +91,22 @@ def convert_and_rename_mov_files(input_directory):
 
 
 if __name__ == "__main__":
-
-    parser = argparse.ArgumentParser(description="Convert MOV files to MP4.")
+    parser = argparse.ArgumentParser(description="Convert MOV/AVI files to MP4.")
     group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument("--dir", help="Directory containing MOV files to convert")
-    group.add_argument("--file", help="Single MOV file to convert")
+    group.add_argument("--dir", help="Directory containing video files to convert")
+    group.add_argument("--file", help="Single video file to convert")
     args = parser.parse_args()
 
     if args.dir:
-        convert_and_rename_mov_files(args.dir)
+        convert_and_rename_video_files(args.dir)
     elif args.file:
-        if args.file.lower().endswith(".mov"):
-
+        if args.file.lower().endswith(('.mov', '.avi')):
+            print(f"\nProcessing: {args.file}")
             output_path = get_output_filepath(input_path=args.file)
             converted_file = convert_file(input_path=args.file, output_path=output_path)
             if converted_file:
                 print(
                     f"Successfully converted and renamed: {args.file} -> {converted_file}"
                 )
-
         else:
-            print(f"Error: {args.file} is not a MOV file.")
+            print(f"Error: {args.file} is not a supported video file. Supported formats: .mov, .avi")
